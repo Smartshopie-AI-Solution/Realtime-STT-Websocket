@@ -1,5 +1,5 @@
 
-# Real-time Speech-to-Text (STT) via WebSocket 🌟
+# Real-time Speech-to-Text (STT) via WebSocket 
 
 A real-time **Speech-to-Text** (STT) system designed for converting spoken language into written text instantly using WebSocket communication. This project supports both Vosk and Hugging Face Whisper models for flexible speech recognition.
 
