@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Speech Transcription</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+            --warning-color: #f59e0b;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--surface);
+            border-radius: 24px;
+            box-shadow: var(--shadow-lg);
+            padding: 40px;
+            max-width: 900px;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 16px 32px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            min-width: 160px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary {
+            background: var(--gradient-success);
+            color: white;
+            box-shadow: 0 4px 14px 0 rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px 0 rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-danger {
+            background: var(--gradient-danger);
+            color: white;
+            box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px 0 rgba(239, 68, 68, 0.4);
+        }
+
+        .btn:disabled {
+            background: #e2e8f0;
+            color: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn:disabled::before {
+            display: none;
+        }
+
+        .transcription-container {
+            background: #f8fafc;
+            border: 2px dashed var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            min-height: 300px;
+            max-height: 500px;
+            overflow-y: auto;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .transcription-container.recording {
+            border-color: var(--secondary-color);
+            background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+            box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+        }
+
+        .transcription-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .transcription-placeholder i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        #transcriptionText {
+            white-space: pre-wrap;
+            line-height: 1.8;
+            font-size: 1.1rem;
+            color: var(--text-primary);
+            min-height: 200px;
+        }
+
+        .status-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+            padding: 16px;
+            background: var(--surface);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.recording {
+            background: var(--secondary-color);
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.error {
+            background: var(--danger-color);
+        }
+
+        .status-indicator.success {
+            background: var(--secondary-color);
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+            }
+        }
+
+        .status-text {
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        .model-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--primary-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn.loading .loading-spinner {
+            display: inline-block;
+        }
+
+        .btn.loading .btn-text {
+            opacity: 0.7;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 24px;
+                margin: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 100%;
+                max-width: 280px;
+            }
+
+            .model-info {
+                position: static;
+                margin-bottom: 20px;
+                text-align: center;
+            }
+        }
+
+        /* Scrollbar Styling */
+        .transcription-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .transcription-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        .transcription-container::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        .transcription-container::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="model-info" id="modelInfo">
+            <i class="fas fa-microchip"></i>
+            <span id="modelType">Loading...</span>
+        </div>
+
+        <div class="header">
+            <h1>Real-time Speech Transcription</h1>
+            <p>Convert your speech to text instantly with AI-powered transcription</p>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" class="btn btn-primary">
+                <i class="fas fa-microphone"></i>
+                <span class="btn-text">Start Recording</span>
+                <div class="loading-spinner"></div>
+            </button>
+            <button id="stopBtn" class="btn btn-danger" disabled>
+                <i class="fas fa-stop"></i>
+                <span class="btn-text">Stop Recording</span>
+                <div class="loading-spinner"></div>
+            </button>
+        </div>
+
+        <div class="transcription-container" id="transcriptionContainer">
+            <div class="transcription-placeholder" id="transcriptionPlaceholder">
+                <i class="fas fa-microphone-alt"></i>
+                <div>Click "Start Recording" to begin transcription</div>
+            </div>
+            <div id="transcriptionText"></div>
+        </div>
+
+        <div class="status-container">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <div class="status-text" id="statusText">Ready to start</div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let socket;
+        let audioContext;
+        let isRecording = false;
+        let stream;
+        let isStoppingInProgress = false;
+        let currentModelType = '';
+
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const transcriptionText = document.getElementById('transcriptionText');
+        const transcriptionContainer = document.getElementById('transcriptionContainer');
+        const transcriptionPlaceholder = document.getElementById('transcriptionPlaceholder');
+        const statusElement = document.getElementById('statusText');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const modelTypeElement = document.getElementById('modelType');
+
+        function updateStatus(message, type = 'default') {
+            statusElement.textContent = message;
+            
+            // Reset indicator classes
+            statusIndicator.className = 'status-indicator';
+            
+            // Add appropriate class based on type
+            if (type === 'recording') {
+                statusIndicator.classList.add('recording');
+            } else if (type === 'error') {
+                statusIndicator.classList.add('error');
+            } else if (type === 'success') {
+                statusIndicator.classList.add('success');
+            }
+        }
+
+        function clearTranscription() {
+            transcriptionText.textContent = '';
+            transcriptionPlaceholder.style.display = 'block';
+            transcriptionContainer.classList.remove('recording');
+        }
+
+        function showTranscription() {
+            transcriptionPlaceholder.style.display = 'none';
+            transcriptionContainer.classList.add('recording');
+        }
+
+        function setButtonLoading(button, loading) {
+            if (loading) {
+                button.classList.add('loading');
+                button.disabled = true;
+            } else {
+                button.classList.remove('loading');
+            }
+        }
+
+        function updateModelInfo(modelType) {
+            currentModelType = modelType;
+            const displayName = modelType === 'vosk' ? 'Vosk Model' : 'Hugging Face Whisper';
+            modelTypeElement.textContent = displayName;
+        }
+
+        function cleanupResources() {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.close();
+            }
+
+            if (audioContext) {
+                audioContext.close();
+            }
+
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+        }
+
+        async function initAudio() {
+            try {
+                setButtonLoading(startBtn, true);
+                updateStatus('Requesting microphone access...', 'default');
+
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 16000,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+                updateStatus('Connecting to server...', 'default');
+
+                // Updated WebSocket URL to use current protocol (ws/wss)
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                socket = new WebSocket(`${protocol}//${window.location.host}/audio-stream`);
+
+                audioContext = new AudioContext({
+                    sampleRate: 16000,
+                });
+
+                const source = audioContext.createMediaStreamSource(stream);
+                const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+                source.connect(processor);
+                processor.connect(audioContext.destination);
+
+                processor.onaudioprocess = (e) => {
+                    if (isRecording && socket.readyState === WebSocket.OPEN) {
+                        const inputData = e.inputBuffer.getChannelData(0);
+                        const pcmData = new Int16Array(inputData.length);
+                        for (let i = 0; i < inputData.length; i++) {
+                            pcmData[i] = Math.min(1, Math.max(-1, inputData[i])) * 0x7FFF;
+                        }
+                        socket.send(pcmData.buffer);
+                    }
+                };
+
+                socket.onopen = () => {
+                    updateStatus('Connected and ready to record', 'success');
+                    setButtonLoading(startBtn, false);
+                };
+
+                socket.onclose = () => {
+                    updateStatus('Connection closed', 'default');
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    if (isRecording) {
+                        stopRecording('websocket-close');
+                    }
+                };
+
+                socket.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateStatus('Connection error occurred', 'error');
+                    setButtonLoading(startBtn, false);
+                    if (isRecording) {
+                        stopRecording('websocket-error');
+                    }
+                };
+
+                return stream;
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                updateStatus('Microphone access denied or unavailable', 'error');
+                setButtonLoading(startBtn, false);
+                throw error;
+            }
+        }
+
+        async function startRecording() {
+            if (isStoppingInProgress) {
+                return;
+            }
+
+            try {
+                clearTranscription();
+                updateStatus('Initializing audio system...', 'default');
+
+                await initAudio();
+                isRecording = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                updateStatus('Recording in progress...', 'recording');
+
+                socket.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.transcribed_text) {
+                            showTranscription();
+                            transcriptionText.textContent = data.transcribed_text;
+                            transcriptionText.parentElement.scrollTop =
+                                transcriptionText.parentElement.scrollHeight;
+                        }
+                        if (data.processor_type) {
+                            updateModelInfo(data.processor_type);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing WebSocket message:', e);
+                    }
+                };
+
+            } catch (error) {
+                console.error('Error:', error);
+                updateStatus('Failed to start recording', 'error');
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        async function stopRecording(source = 'button') {
+            if (isStoppingInProgress) {
+                return;
+            }
+
+            try {
+                isStoppingInProgress = true;
+                setButtonLoading(stopBtn, true);
+                updateStatus('Processing final audio...', 'default');
+
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                isRecording = false;
+
+                cleanupResources();
+                updateStatus('Recording stopped', 'success');
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                setButtonLoading(stopBtn, false);
+
+            } catch (error) {
+                console.error('Error:', error);
+                updateStatus('Error stopping recording', 'error');
+            } finally {
+                isStoppingInProgress = false;
+            }
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', startRecording);
+        stopBtn.addEventListener('click', () => stopRecording('button'));
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', async () => {
+            if (isRecording) {
+                await stopRecording('unload');
+            }
+        });
+
+        // Initialize UI
+        document.addEventListener('DOMContentLoaded', () => {
+            updateStatus('Ready to start transcription', 'default');
+            updateModelInfo('Loading...');
+        });
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && !isRecording && !startBtn.disabled) {
+                e.preventDefault();
+                startRecording();
+            } else if (e.code === 'Escape' && isRecording) {
+                e.preventDefault();
+                stopRecording('keyboard');
+            }
+        });
+    </script>
+</body>
+
+</html>
