@@ -136,12 +136,4 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
    - Try smaller models for faster processing
    - Adjust `PROCESS_INTERVAL` in `config.py`
 
-## 📝 License
 
-This project is open source. Please check the license file for details.
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
----
